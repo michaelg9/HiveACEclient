@@ -1,0 +1,4 @@
+rootProject.name = 'mqtt-ace-client'
+
+include('examples')
+project(':examples').name = 'mqtt-ace-client-examples'

@@ -1,0 +1,10 @@
+description 'ACE MQTT Client examples'
+
+ext {
+    moduleName = 'com.ace.mqtt.examples'
+    readableName = 'ACE mqtt client examples'
+}
+
+dependencies {
+    implementation rootProject
+}
