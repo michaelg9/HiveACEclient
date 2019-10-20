@@ -17,8 +17,8 @@ public class ExtendedAuthentication {
                 .cleanStart(true)
                 .enhancedAuth(
                         new EnhancedAuthDataMechanism(
-                                "qdLuPyp2KqcOtdgN",
-                                "rBupCxybxhiqlMwxxOya8ixQNS5NV0iW8OWf2tx3Ugo=",
+                                "zE*ddCU6cwbFAipf",
+                                "7CrGzSyzh1l/2ixRC8XfmVtXWcGDf8+Wuao8yaIsX1w=",
                                 requestHandler))
                 .send();
         connAck.getAssignedClientIdentifier();

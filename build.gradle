@@ -7,9 +7,6 @@ plugins {
 group 'com.ace.mqtt'
 version '1.0-SNAPSHOT'
 
-sourceCompatibility = 1.8
-
-
 
 allprojects {
     apply plugin: 'java'

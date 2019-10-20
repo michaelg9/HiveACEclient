@@ -1,5 +1,6 @@
 package com.ace.mqtt.auth;
 
+import com.ace.mqtt.crypto.AuthCalculator;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
 import com.ace.mqtt.http.RequestHandler;
@@ -16,9 +17,13 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
-    @NotNull private final String clientID;
-    @NotNull private final String clientSecret;
-    @NotNull private final RequestHandler requestHandler;
+
+    @NotNull
+    private final String clientID;
+    @NotNull
+    private final String clientSecret;
+    @NotNull
+    private final RequestHandler requestHandler;
 
     public EnhancedAuthDataMechanism(
             @NotNull final String clientID,
@@ -35,11 +40,15 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
-            final String token;
             try {
-                final TokenRequestResponse tokenRequestResponse = requestHandler.requestToken(this.clientID, this.clientSecret);
-                token = tokenRequestResponse.access_token + "NEXTdisig";
-                authBuilder.data(token.getBytes());
+                final TokenRequestResponse tokenRequestResponse =
+                        requestHandler.requestToken(this.clientID, this.clientSecret);
+                authBuilder.data(
+                        new AuthCalculator(
+                                tokenRequestResponse.cnf.jwk.k,
+                                tokenRequestResponse.access_token,
+                                tokenRequestResponse.cnf.jwk.alg)
+                        .getAuthData(connect));
                 future.complete(null);
             } catch (final ASUnreachableException | FailedAuthenticationException e) {
                 e.printStackTrace();
@@ -57,22 +66,22 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
 
     @Override
     public @NotNull CompletableFuture<Boolean> onServerReAuth(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth,
+            @NotNull final Mqtt5AuthBuilder authBuilder) {
         return null;
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onContinue(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth,
+            @NotNull final Mqtt5AuthBuilder authBuilder) {
         return null;
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(Boolean.TRUE);
-        return future;
+        return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 
     @Override
@@ -81,27 +90,4 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
         return null;
     }
 
-    @Override
-    public void onAuthRejected(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-
-    }
-
-    @Override
-    public void onReAuthRejected(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Disconnect disconnect) {
-
-    }
-
-    @Override
-    public void onAuthError(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Throwable cause) {
-
-    }
-
-    @Override
-    public void onReAuthError(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Throwable cause) {
-
-    }
 }
