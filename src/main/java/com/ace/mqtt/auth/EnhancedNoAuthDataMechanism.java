@@ -12,43 +12,42 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 public class EnhancedNoAuthDataMechanism extends ACEEnhancedAuthMechanism {
+    private final String errorMessage = "AS discovery authentication attempt does not expect";
 
     @Override
     public @NotNull CompletableFuture<Void> onAuth(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Connect connect,
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
-        return CompletableFuture.runAsync(""::getBytes);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public @NotNull CompletableFuture<Void> onReAuth(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5AuthBuilder authBuilder) {
-        return null;
+        throw new UnsupportedOperationException(String.format("%s reauthentication from client",errorMessage));
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onServerReAuth(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
-        return null;
+        throw new UnsupportedOperationException(String.format("%s reauthentication from server",errorMessage));
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onContinue(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
-        return null;
+        throw new UnsupportedOperationException(String.format("%s Auth packet from server",errorMessage));
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(Boolean.FALSE);
-        return future;
+        throw new UnsupportedOperationException(String.format("%s authentication success",errorMessage));
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onReAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth) {
-        return null;
+        throw new UnsupportedOperationException(String.format("%s reauthentication",errorMessage));
     }
 }

@@ -1,4 +1,4 @@
-package com.ace.mqtt.utils;
+package com.ace.mqtt.http;
 
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
@@ -14,11 +14,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
 
-public class OauthHttpClient {
+class OauthHttpClient {
     @NotNull
     private final EndpointRetriever endpointRetriever;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @NotNull
     final private java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
             .version(java.net.http.HttpClient.Version.HTTP_1_1)
             .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)

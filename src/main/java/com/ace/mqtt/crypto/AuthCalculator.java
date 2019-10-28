@@ -1,9 +1,13 @@
 package com.ace.mqtt.crypto;
 
+import com.hivemq.client.internal.mqtt.datatypes.MqttUtf8StringImpl;
+import com.hivemq.client.internal.util.Utf8Util;
+import com.hivemq.client.mqtt.datatypes.MqttUtf8String;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -16,29 +20,35 @@ import java.security.NoSuchAlgorithmException;
  */
 public class AuthCalculator {
 
-    private final String separator = "NEXT";
     private final String algorithm = "HmacSHA256";
     private final String key;
     private final String token;
 
-    public AuthCalculator(final String key, final String token, String algorithm) {
+    public AuthCalculator(final String key, final String token, final String algorithm) {
         this.key = key;
         this.token = token;
     }
 
-    public byte[] getAuthData(final Mqtt5Connect connect) {
-        final String result = token + separator + compute_hmac(connect);
-        return result.getBytes();
+    public ByteBuffer getAuthData(final Mqtt5Connect connect) {
+        final MqttUtf8StringImpl token = MqttUtf8StringImpl.of(this.token);
+        final byte[] mac = compute_hmac(connect);
+        final ByteBuffer results = ByteBuffer.allocate(token.encodedLength() + 2 + mac.length);
+        results.putShort((short) (token.encodedLength() - 2));
+        results.put(token.toByteBuffer());
+        results.putShort((short) mac.length);
+        results.put(mac);
+        results.rewind();
+        return results;
     }
 
-    private String compute_hmac(final Mqtt5Connect connect) {
+    private byte[] compute_hmac(final Mqtt5Connect connect) {
         final byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
         try {
             final Mac sha512_HMAC = Mac.getInstance(algorithm);
             final SecretKeySpec keySpec = new SecretKeySpec(byteKey, algorithm);
             sha512_HMAC.init(keySpec);
             final byte[] mac_data = sha512_HMAC.doFinal(token.getBytes());
-            return bytesToHex(mac_data);
+            return bytesToHex(mac_data).getBytes();
         } catch (final NoSuchAlgorithmException | InvalidKeyException e) {
             // should never happen for the case of HmacSHA1 / HmacSHA256
             e.printStackTrace();

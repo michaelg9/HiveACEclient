@@ -11,7 +11,6 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
-import com.hivemq.client.mqtt.mqtt5.message.disconnect.Mqtt5Disconnect;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
@@ -19,18 +18,11 @@ import java.util.concurrent.CompletableFuture;
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
 
     @NotNull
-    private final String clientID;
-    @NotNull
-    private final String clientSecret;
-    @NotNull
     private final RequestHandler requestHandler;
 
     public EnhancedAuthDataMechanism(
-            @NotNull final String clientID,
-            @NotNull final String clientSecret,
             @NotNull final RequestHandler requestHandler) {
-        this.clientID = clientID;
-        this.clientSecret = clientSecret;
+
         this.requestHandler = requestHandler;
     }
 
@@ -41,14 +33,13 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             try {
-                final TokenRequestResponse tokenRequestResponse =
-                        requestHandler.requestToken(this.clientID, this.clientSecret);
+                final TokenRequestResponse tokenRequestResponse = requestHandler.requestToken();
                 authBuilder.data(
                         new AuthCalculator(
-                                tokenRequestResponse.cnf.jwk.k,
-                                tokenRequestResponse.access_token,
-                                tokenRequestResponse.cnf.jwk.alg)
-                        .getAuthData(connect));
+                                tokenRequestResponse.getCnf().getJwk().getK(),
+                                tokenRequestResponse.getAccess_token(),
+                                tokenRequestResponse.getCnf().getJwk().getAlg())
+                                .getAuthData(connect));
                 future.complete(null);
             } catch (final ASUnreachableException | FailedAuthenticationException e) {
                 e.printStackTrace();
