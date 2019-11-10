@@ -15,6 +15,7 @@ public class ExtendedAuthentication {
         final String clientID = "zE*ddCU6cwbFAipf";
         final String clientSecret = "7CrGzSyzh1l/2ixRC8XfmVtXWcGDf8+Wuao8yaIsX1w=";
         final Mqtt5BlockingClient client = Mqtt5Client.builder()
+                .identifier(clientID)
                 .serverHost(rsServer)
                 .buildBlocking();
         final RequestHandler requestHandler = new RequestHandler(asServer, asPort, clientID, clientSecret);

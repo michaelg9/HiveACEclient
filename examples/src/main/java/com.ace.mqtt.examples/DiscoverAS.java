@@ -16,6 +16,7 @@ public class DiscoverAS {
         final String clientID = "zE*ddCU6cwbFAipf";
         final String clientSecret = "7CrGzSyzh1l/2ixRC8XfmVtXWcGDf8+Wuao8yaIsX1w=";
         final Mqtt5BlockingClient client = Mqtt5Client.builder()
+                .identifier(clientID)
                 .serverHost(rsServer)
                 .buildBlocking();
         Mqtt5ConnAck connAck;
