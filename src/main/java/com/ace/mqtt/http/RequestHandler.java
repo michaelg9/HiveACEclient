@@ -9,18 +9,15 @@ import org.jetbrains.annotations.NotNull;
 public class RequestHandler {
     private final String targetAS;
     private final String targetPort;
-    private final String clientID;
-    private final String clientSecret;
+    private final byte[] authorizationHeader;
 
     public RequestHandler(
             @NotNull final String targetAS,
             @NotNull final String targetPort,
-            @NotNull final String clientID,
-            @NotNull final String clientSecret) {
+            @NotNull final byte[] authorizationHeader) {
         this.targetAS = targetAS;
         this.targetPort = targetPort;
-        this.clientID = clientID;
-        this.clientSecret = clientSecret;
+        this.authorizationHeader = authorizationHeader;
     }
 
     public @NotNull TokenRequestResponse requestToken() throws ASUnreachableException, FailedAuthenticationException {
@@ -29,7 +26,7 @@ public class RequestHandler {
         String aud = "humidity";
         final OauthHttpClient oauthHttpClient = new OauthHttpClient(this.targetAS, this.targetPort);
         final TokenRequest tokenRequest = new TokenRequest(grantType, scope, aud);
-        return oauthHttpClient.tokenRequest(clientID + ":" + clientSecret, tokenRequest);
+        return oauthHttpClient.tokenRequest(authorizationHeader, tokenRequest);
     }
 
 }

@@ -29,10 +29,10 @@ class OauthHttpClient {
 
 
     @NotNull public TokenRequestResponse tokenRequest(
-            @NotNull final String authorizationHeader,
+            @NotNull final byte[] authorizationHeader,
             @NotNull final TokenRequest tokenRequest
             ) throws ASUnreachableException, FailedAuthenticationException {
-        final String encodedAuth = Base64.getEncoder().encodeToString((authorizationHeader).getBytes());
+        final String encodedAuth = Base64.getEncoder().encodeToString(authorizationHeader);
         final String stringifiedBody;
         try {
             stringifiedBody = new ObjectMapper().writeValueAsString(tokenRequest);
