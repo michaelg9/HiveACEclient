@@ -12,17 +12,19 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
-public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
-
+public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism {
     @NotNull
     private final RequestHandler requestHandler;
+    @Nullable
+    private AuthCalculator authCalculator;
 
-    public EnhancedAuthDataMechanism(
+    public EnhancedAuthDataMechanismWithAuth(
             @NotNull final RequestHandler requestHandler) {
-
         this.requestHandler = requestHandler;
     }
 
@@ -34,12 +36,11 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
         CompletableFuture.runAsync(() -> {
             try {
                 final TokenRequestResponse tokenRequestResponse = requestHandler.requestToken();
-                authBuilder.data(
-                        new AuthCalculator(
-                                tokenRequestResponse.getCnf().getJwk().getK(),
-                                tokenRequestResponse.getAccess_token(),
-                                tokenRequestResponse.getCnf().getJwk().getAlg())
-                                .getCombinedAuthData(connect));
+                this.authCalculator = new AuthCalculator(
+                        tokenRequestResponse.getCnf().getJwk().getK(),
+                        tokenRequestResponse.getAccess_token(),
+                        tokenRequestResponse.getCnf().getJwk().getAlg());
+                authBuilder.data(authCalculator.getSimpleAuthData());
                 future.complete(null);
             } catch (final ASUnreachableException | FailedAuthenticationException e) {
                 e.printStackTrace();
@@ -57,16 +58,29 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
 
     @Override
     public @NotNull CompletableFuture<Boolean> onServerReAuth(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth,
-            @NotNull final Mqtt5AuthBuilder authBuilder) {
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
         return null;
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onContinue(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth,
-            @NotNull final Mqtt5AuthBuilder authBuilder) {
-        return null;
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        if (auth.getData().isEmpty()) {
+            future.completeExceptionally(new FailedAuthenticationException("Expected nonce"));
+            return future;
+        }
+        final ByteBuffer authData = auth.getData().get();
+        final short nonceLength = authData.getShort();
+        if (authData.remaining() < nonceLength) {
+            throw new IllegalArgumentException();
+        }
+        final byte[] nonce = new byte[nonceLength];
+        authData.get(nonce);
+        final ByteBuffer mac = authCalculator.signNonce(nonce);
+        authBuilder.data(mac);
+        future.complete(Boolean.TRUE);
+        return future;
     }
 
     @Override
@@ -80,5 +94,4 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth) {
         return null;
     }
-
 }
