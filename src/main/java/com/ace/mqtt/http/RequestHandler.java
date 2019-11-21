@@ -20,10 +20,8 @@ public class RequestHandler {
         this.authorizationHeader = authorizationHeader;
     }
 
-    public @NotNull TokenRequestResponse requestToken() throws ASUnreachableException, FailedAuthenticationException {
-        String grantType = "client_credentials";
-        String scope = "sub";
-        String aud = "humidity";
+    public @NotNull TokenRequestResponse requestToken(final String grantType, final String scope, final String aud)
+            throws ASUnreachableException, FailedAuthenticationException {
         final OauthHttpClient oauthHttpClient = new OauthHttpClient(this.targetAS, this.targetPort);
         final TokenRequest tokenRequest = new TokenRequest(grantType, scope, aud);
         return oauthHttpClient.tokenRequest(authorizationHeader, tokenRequest);

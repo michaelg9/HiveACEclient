@@ -1,9 +1,6 @@
 package com.ace.mqtt.auth;
 
 import com.ace.mqtt.crypto.AuthCalculator;
-import com.ace.mqtt.exceptions.ASUnreachableException;
-import com.ace.mqtt.exceptions.FailedAuthenticationException;
-import com.ace.mqtt.http.RequestHandler;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientConfig;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5Auth;
@@ -18,12 +15,10 @@ import java.util.concurrent.CompletableFuture;
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
 
     @NotNull
-    private final RequestHandler requestHandler;
+    private final TokenRequestResponse token;
 
-    public EnhancedAuthDataMechanism(
-            @NotNull final RequestHandler requestHandler) {
-
-        this.requestHandler = requestHandler;
+    public EnhancedAuthDataMechanism(@NotNull final TokenRequestResponse token) {
+        this.token = token;
     }
 
     @Override
@@ -31,21 +26,13 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Connect connect,
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                final TokenRequestResponse tokenRequestResponse = requestHandler.requestToken();
-                authBuilder.data(
-                        new AuthCalculator(
-                                tokenRequestResponse.getCnf().getJwk().getK(),
-                                tokenRequestResponse.getAccess_token(),
-                                tokenRequestResponse.getCnf().getJwk().getAlg())
-                                .getCombinedAuthData(connect));
-                future.complete(null);
-            } catch (final ASUnreachableException | FailedAuthenticationException e) {
-                e.printStackTrace();
-                future.completeExceptionally(e);
-            }
-        });
+        authBuilder.data(
+                new AuthCalculator(
+                        token.getCnf().getJwk().getK(),
+                        token.getAccess_token(),
+                        token.getCnf().getJwk().getAlg())
+                        .getCombinedAuthData(connect));
+        future.complete(null);
         return future;
     }
 

@@ -3,34 +3,43 @@ package com.ace.mqtt.examples;
 import com.ace.mqtt.auth.ACEEnhancedAuthMechanism;
 import com.ace.mqtt.auth.EnhancedAuthDataMechanism;
 import com.ace.mqtt.auth.EnhancedAuthDataMechanismWithAuth;
+import com.ace.mqtt.exceptions.ASUnreachableException;
+import com.ace.mqtt.exceptions.FailedAuthenticationException;
 import com.ace.mqtt.http.RequestHandler;
+import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 
+import java.io.IOException;
+import java.util.Properties;
+
+import static com.ace.mqtt.examples.DiscoverAS.readConfig;
+
 public class ExtendedAuthentication {
 
-    public static void main(final String[] args) {
-        if (args.length < 2) {
-            System.out.println("Parameters: client-id client-secret [\"challenge\"]");
-            System.exit(1);
-        }
-        final String rsServer = "127.0.0.1";
-        final String asServer = "127.0.0.1";
-        final String asPort = "3001";
-        final String clientID = args[0];
-        final String clientSecret = args[1];
+    public static void main(final String[] args)
+            throws IOException, ASUnreachableException, FailedAuthenticationException {
+        final Properties config = readConfig();
+        final String rsServerIP = config.getProperty("RSServerIP");
+        final String asServerIP = config.getProperty("ASServerIP");
+        final String asServerPort = config.getProperty("ASServerPort");
+        final String clientID = config.getProperty("ClientID");
+        final String clientSecret = config.getProperty("ClientSecret");
+        final boolean withChallenge = config.getProperty("ExtendendAuthWithChallenge").equals("true");
+        final String grantType = "client_credentials";
+        final String scope = "sub";
+        final String aud = "humidity";
+        final byte[] secret = (clientID+":"+clientSecret).getBytes();
         final Mqtt5BlockingClient client = Mqtt5Client.builder()
                 .identifier(clientID)
-                .serverHost(rsServer)
+                .serverHost(rsServerIP)
                 .buildBlocking();
-        final RequestHandler requestHandler = new RequestHandler(asServer, asPort, (clientID+":"+clientSecret).getBytes());
-        final ACEEnhancedAuthMechanism mechanism;
-        if (args.length == 3 && args[2].equals("challenge")) {
-            mechanism = new EnhancedAuthDataMechanismWithAuth(requestHandler);
-        } else {
-            mechanism = new EnhancedAuthDataMechanism(requestHandler);
-        }
+        final RequestHandler requestHandler = new RequestHandler(asServerIP, asServerPort, secret);
+        final TokenRequestResponse token = requestHandler.requestToken(grantType, scope, aud);
+        final ACEEnhancedAuthMechanism mechanism = withChallenge ?
+                new EnhancedAuthDataMechanismWithAuth(token) :
+                new EnhancedAuthDataMechanism(token);
         final Mqtt5ConnAck connAck = client.toBlocking().connectWith()
                 .cleanStart(true)
                 .sessionExpiryInterval(30)
