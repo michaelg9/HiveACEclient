@@ -41,7 +41,7 @@ public class AuthCalculator {
         return results;
     }
 
-    public ByteBuffer signNonce(byte[] nonce) {
+    public ByteBuffer signNonce(final byte[] nonce) {
         final byte[] signedNonce = compute_hmac(nonce);
         final ByteBuffer results = ByteBuffer.allocate(2 + signedNonce.length);
         results.putShort((short) signedNonce.length);
@@ -61,7 +61,7 @@ public class AuthCalculator {
 
 
 
-    private byte[] compute_hmac(byte[] nonce) {
+    private byte[] compute_hmac(final byte[] nonce) {
         final byte[] byteKey = key.getBytes(StandardCharsets.UTF_8);
         try {
             final Mac sha512_HMAC = Mac.getInstance(algorithm);

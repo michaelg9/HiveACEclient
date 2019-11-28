@@ -18,7 +18,8 @@ public abstract class ACEEnhancedAuthMechanism implements Mqtt5EnhancedAuthMecha
 
     @Override
     public @NotNull MqttUtf8String getMethod() {
-        return MqttUtf8StringImpl.of("ACE");
+        // authentication method defined by the draft
+        return MqttUtf8StringImpl.of("ace");
     }
 
     @Override

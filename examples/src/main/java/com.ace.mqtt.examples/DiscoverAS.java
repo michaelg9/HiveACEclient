@@ -1,18 +1,16 @@
 package com.ace.mqtt.examples;
 
-import com.ace.mqtt.auth.EnhancedAuthDataMechanism;
 import com.ace.mqtt.auth.EnhancedNoAuthDataMechanism;
-import com.ace.mqtt.exceptions.ASUnreachableException;
-import com.ace.mqtt.exceptions.FailedAuthenticationException;
-import com.ace.mqtt.http.RequestHandler;
-import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
+import com.hivemq.client.mqtt.MqttClientState;
+import com.hivemq.client.mqtt.datatypes.MqttUtf8String;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
+import com.hivemq.client.mqtt.mqtt5.datatypes.Mqtt5UserProperty;
 import com.hivemq.client.mqtt.mqtt5.exceptions.Mqtt5ConnAckException;
-import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
 
 public class DiscoverAS {
@@ -27,37 +25,37 @@ public class DiscoverAS {
         }
     }
 
-    public static void main(final String[] args)
-            throws IOException, ASUnreachableException, FailedAuthenticationException {
+    public static void main(final String[] args) throws IOException {
         final Properties config = readConfig();
         final String rsServerIP = config.getProperty("RSServerIP");
-        final String asServerPort = config.getProperty("ASServerPort");
         final String clientID = config.getProperty("ClientID");
-        final String clientSecret = config.getProperty("ClientSecret");
-        final byte[] secret = (clientID+":"+clientSecret).getBytes();
-        final String grantType = "client_credentials";
-        final String scope = "sub";
-        final String aud = "humidity";
         final Mqtt5BlockingClient client = Mqtt5Client.builder()
                 .identifier(clientID)
                 .serverHost(rsServerIP)
                 .buildBlocking();
-        Mqtt5ConnAck connAck;
+        String cnonce = null;
+        String asServerIP = null;
         try {
-            connAck = client.toBlocking().connectWith()
+            client.toBlocking().connectWith()
                     .cleanStart(true)
                     .enhancedAuth(new EnhancedNoAuthDataMechanism())
                     .send();
         } catch (final Mqtt5ConnAckException e) {
-            final String asServerIP = e.getMqttMessage().getReasonString().orElseThrow().toString();
-            final RequestHandler requestHandler = new RequestHandler(asServerIP, asServerPort, secret);
-            final TokenRequestResponse token = requestHandler.requestToken(grantType, scope, aud);
-            connAck = client.toBlocking().connectWith()
-                    .cleanStart(true)
-                    .enhancedAuth(new EnhancedAuthDataMechanism(token))
-                    .send();
+            //TODO: parameter names? cnonce use?
+            final List<? extends Mqtt5UserProperty> props = e.getMqttMessage().getUserProperties().asList();
+            for (final Mqtt5UserProperty p : props) {
+                if (p.getName().equals(MqttUtf8String.of("AS"))) {
+                    asServerIP = p.getValue().toString();
+                } else if (p.getName().equals(MqttUtf8String.of("cnonce"))) {
+                    cnonce = p.getValue().toString();
+                }
+            }
         }
-        System.out.println("connected " + connAck);
-        client.disconnect();
+        if (asServerIP == null) throw new IllegalStateException("Expected to discover the AS server address");
+        System.out.println(String.format("Discovered AS server '%s' and cnonce %s", asServerIP, cnonce));
+        if (!client.getState().equals(MqttClientState.DISCONNECTED)) {
+            client.disconnect();
+            throw new IllegalStateException("Client shouldn't be connected");
+        }
     }
 }

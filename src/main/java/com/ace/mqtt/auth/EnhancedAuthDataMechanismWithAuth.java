@@ -6,6 +6,7 @@ import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientConfig;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5Auth;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
+import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthReasonCode;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
@@ -54,6 +55,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
     @Override
     public @NotNull CompletableFuture<Boolean> onContinue(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth, @NotNull final Mqtt5AuthBuilder authBuilder) {
+        // no need to check reason code, this method is triggered on CONTINUE_AUTHENTICATION by default
         final CompletableFuture<Boolean> future = new CompletableFuture<>();
         if (auth.getData().isEmpty()) {
             future.completeExceptionally(new FailedAuthenticationException("Expected nonce"));
