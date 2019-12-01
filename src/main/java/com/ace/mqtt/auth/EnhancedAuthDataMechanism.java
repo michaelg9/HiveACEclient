@@ -1,6 +1,7 @@
 package com.ace.mqtt.auth;
 
-import com.ace.mqtt.crypto.AuthCalculator;
+import com.ace.mqtt.crypto.MACCalculator;
+import com.ace.mqtt.utils.AuthData;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientConfig;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5Auth;
@@ -11,8 +12,13 @@ import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanism.class.getName());
 
     @NotNull
     private final TokenRequestResponse token;
@@ -26,12 +32,12 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Connect connect,
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        authBuilder.data(
-                new AuthCalculator(
-                        token.getCnf().getJwk().getK(),
-                        token.getAccess_token(),
-                        token.getCnf().getJwk().getAlg())
-                        .getCombinedAuthData(connect));
+        final MACCalculator macCalculator = new MACCalculator(
+                hexStringToByteArray(token.getCnf().getJwk().getK()),
+                token.getCnf().getJwk().getAlg());
+        final byte[] pop = macCalculator.compute_hmac(token.getAccess_token().getBytes());
+        final AuthData authData = new AuthData(token.getAccess_token(), pop);
+        authBuilder.data(authData.getCompleteAuthData());
         future.complete(null);
         return future;
     }
@@ -59,6 +65,7 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
+        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
         return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 

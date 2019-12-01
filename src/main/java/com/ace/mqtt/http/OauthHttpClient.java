@@ -13,8 +13,12 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class OauthHttpClient {
+    private final static Logger LOGGER = Logger.getLogger(OauthHttpClient.class.getName());
+
     @NotNull
     private final EndpointRetriever endpointRetriever;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,6 +50,7 @@ class OauthHttpClient {
                 .POST(HttpRequest.BodyPublishers.ofString(stringifiedBody))
                 .setHeader("Authorization", "Basic " + encodedAuth)
                 .build();
+        LOGGER.log(Level.FINE, String.format("Request:\t%s\nHeaders:\t%s\nBody:\t%s", request.toString(), request.headers(), stringifiedBody));
         final HttpResponse<String> response;
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -53,6 +58,7 @@ class OauthHttpClient {
             // unable to contact AS server
             throw new ASUnreachableException("Unable to contact AS server");
         }
+        LOGGER.log(Level.FINE, String.format("Request:\t%s\nHeaders:\t%s\nBody:\t%s", response.toString(), response.headers(), response.body()));
         if (response.statusCode() != 200) {
             // token request failed, invalid token
             throw new FailedAuthenticationException(response.body());

@@ -6,12 +6,14 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
-import com.hivemq.client.mqtt.mqtt5.message.disconnect.Mqtt5Disconnect;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class EnhancedNoAuthDataMechanism extends ACEEnhancedAuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(EnhancedNoAuthDataMechanism.class.getName());
     private final String errorMessage = "AS discovery authentication attempt does not expect";
 
     @Override
@@ -42,12 +44,13 @@ public class EnhancedNoAuthDataMechanism extends ACEEnhancedAuthMechanism {
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        throw new UnsupportedOperationException(String.format("%s authentication success",errorMessage));
+        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
+        return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 
     @Override
     public @NotNull CompletableFuture<Boolean> onReAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Auth auth) {
-        throw new UnsupportedOperationException(String.format("%s reauthentication",errorMessage));
+        return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 }

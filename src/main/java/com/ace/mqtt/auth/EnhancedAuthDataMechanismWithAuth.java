@@ -1,29 +1,33 @@
 package com.ace.mqtt.auth;
 
-import com.ace.mqtt.crypto.AuthCalculator;
+import com.ace.mqtt.crypto.MACCalculator;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
+import com.ace.mqtt.utils.AuthData;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientConfig;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5Auth;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
-import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthReasonCode;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static com.ace.mqtt.utils.StringUtils.bytesToHex;
+import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism {
-    @NotNull
-    private final TokenRequestResponse requestToken;
-    @Nullable
-    private AuthCalculator authCalculator;
+    private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanismWithAuth.class.getName());
+    @NotNull private final TokenRequestResponse requestToken;
+    @NotNull private final AuthData authData;
 
     public EnhancedAuthDataMechanismWithAuth(@NotNull final TokenRequestResponse requestToken) {
         this.requestToken = requestToken;
+        this.authData = new AuthData(requestToken.getAccess_token());
     }
 
     @Override
@@ -31,11 +35,8 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Connect connect,
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        this.authCalculator = new AuthCalculator(
-                requestToken.getCnf().getJwk().getK(),
-                requestToken.getAccess_token(),
-                requestToken.getCnf().getJwk().getAlg());
-        authBuilder.data(authCalculator.getSimpleAuthData());
+        final AuthData authData = new AuthData(requestToken.getAccess_token());
+        authBuilder.data(authData.getTokenAuthData());
         future.complete(null);
         return future;
     }
@@ -61,15 +62,13 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             future.completeExceptionally(new FailedAuthenticationException("Expected nonce"));
             return future;
         }
-        final ByteBuffer authData = auth.getData().get();
-        final short nonceLength = authData.getShort();
-        if (authData.remaining() < nonceLength) {
-            throw new IllegalArgumentException();
-        }
-        final byte[] nonce = new byte[nonceLength];
-        authData.get(nonce);
-        final ByteBuffer mac = authCalculator.signNonce(nonce);
-        authBuilder.data(mac);
+        LOGGER.log(Level.FINE, String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToHex(auth.getData().get())));
+        final MACCalculator macCalculator = new MACCalculator(
+                hexStringToByteArray(requestToken.getCnf().getJwk().getK()), requestToken.getCnf().getJwk().getAlg());
+        final ByteBuffer nonce = auth.getData().get();
+        final byte[] mac = macCalculator.signNonce(nonce);
+        authData.setPop(mac);
+        authBuilder.data(authData.getPOPAuthData());
         future.complete(Boolean.TRUE);
         return future;
     }
@@ -77,6 +76,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
+        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
         return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 

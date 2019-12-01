@@ -13,8 +13,11 @@ import com.hivemq.client.mqtt.mqtt5.message.disconnect.Mqtt5Disconnect;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public abstract class ACEEnhancedAuthMechanism implements Mqtt5EnhancedAuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(ACEEnhancedAuthMechanism.class.getName());
 
     @Override
     public @NotNull MqttUtf8String getMethod() {
@@ -48,15 +51,21 @@ public abstract class ACEEnhancedAuthMechanism implements Mqtt5EnhancedAuthMecha
 
     @Override
     public void onAuthRejected(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {}
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
+        LOGGER.log(Level.FINE, String.format("AUTH Rejected:\t%s", connAck));
+    }
 
     @Override
     public void onReAuthRejected(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Disconnect disconnect) {}
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Disconnect disconnect) {
+        LOGGER.log(Level.FINE, String.format("Re-AUTH Rejected:\t%s", disconnect));
+    }
 
     @Override
     public void onAuthError(
-            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Throwable cause) {}
+            @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Throwable cause) {
+        LOGGER.log(Level.FINE, String.format("AUTH Error:\t%s", cause));
+    }
 
     @Override
     public void onReAuthError(

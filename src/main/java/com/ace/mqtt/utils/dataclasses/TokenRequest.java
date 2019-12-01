@@ -3,7 +3,7 @@ package com.ace.mqtt.utils.dataclasses;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * '{"grant_type":"client_credentials","scope":"sub","aud":"humidity"}'
+ *
  */
 public final class TokenRequest {
     private final String grant_type;

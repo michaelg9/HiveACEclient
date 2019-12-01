@@ -46,7 +46,6 @@ public class ExtendedAuthentication {
                 .sessionExpiryInterval(0)
                 .enhancedAuth(mechanism)
                 .send();
-        System.out.println("connected " + connAck);
         client.disconnect();
     }
 }
