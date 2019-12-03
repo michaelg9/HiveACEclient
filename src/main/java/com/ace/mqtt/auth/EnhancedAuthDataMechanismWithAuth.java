@@ -18,7 +18,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.ace.mqtt.utils.StringUtils.bytesToHex;
-import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism {
     private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanismWithAuth.class.getName());
@@ -63,10 +62,12 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             return future;
         }
         LOGGER.log(Level.FINE, String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToHex(auth.getData().get())));
+        //todo: key encoding?
         final MACCalculator macCalculator = new MACCalculator(
-                hexStringToByteArray(requestToken.getCnf().getJwk().getK()), requestToken.getCnf().getJwk().getAlg());
+                requestToken.getCnf().getJwk().getK(), requestToken.getCnf().getJwk().getAlg());
         final ByteBuffer nonce = auth.getData().get();
         final byte[] mac = macCalculator.signNonce(nonce);
+        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", bytesToHex(mac)));
         authData.setPop(mac);
         authBuilder.data(authData.getPOPAuthData());
         future.complete(Boolean.TRUE);

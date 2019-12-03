@@ -17,7 +17,8 @@ public final class TokenRequestResponse {
     public static class JWK {
         private String kty;
         private String alg;
-        private String k;
+        // key is base64 encoded
+        private byte[] k;
 
         public String getKty() {
             return kty;
@@ -27,7 +28,7 @@ public final class TokenRequestResponse {
             return alg;
         }
 
-        public String getK() {
+        public byte[] getK() {
             return k;
         }
     }

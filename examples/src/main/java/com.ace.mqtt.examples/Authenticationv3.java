@@ -14,11 +14,10 @@ import java.io.IOException;
 import java.util.Properties;
 
 import static com.ace.mqtt.examples.DiscoverAS.readConfig;
-import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class Authenticationv3 {
 
-    public static void main(final String[] args) throws IOException, ASUnreachableException, FailedAuthenticationException {
+    public static void main(String[] args) throws ASUnreachableException, IOException, FailedAuthenticationException {
         final Properties config = readConfig();
         final String rsServerIP = config.getProperty("RSServerIP");
         final String asServerIP = config.getProperty("ASServerIP");
@@ -36,7 +35,7 @@ public class Authenticationv3 {
         final RequestHandler requestHandler = new RequestHandler(asServerIP, asServerPort, secret);
         final TokenRequestResponse token = requestHandler.requestToken(grantType, scope, aud);
         final MACCalculator macCalculator = new MACCalculator(
-                hexStringToByteArray(token.getCnf().getJwk().getK()),
+                token.getCnf().getJwk().getK(),
                 token.getCnf().getJwk().getAlg());
         final byte[] pop = macCalculator.compute_hmac(token.getAccess_token().getBytes());
         final AuthData authData = new AuthData(token.getAccess_token(), pop);
@@ -48,4 +47,5 @@ public class Authenticationv3 {
         System.out.println("connected " + connAck);
         client.disconnect();
     }
+
 }

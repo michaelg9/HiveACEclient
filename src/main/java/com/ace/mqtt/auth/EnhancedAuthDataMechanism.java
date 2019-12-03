@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static com.ace.mqtt.utils.StringUtils.bytesToHex;
 import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
@@ -33,9 +34,10 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         final MACCalculator macCalculator = new MACCalculator(
-                hexStringToByteArray(token.getCnf().getJwk().getK()),
+                token.getCnf().getJwk().getK(),
                 token.getCnf().getJwk().getAlg());
         final byte[] pop = macCalculator.compute_hmac(token.getAccess_token().getBytes());
+        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", bytesToHex(pop)));
         final AuthData authData = new AuthData(token.getAccess_token(), pop);
         authBuilder.data(authData.getCompleteAuthData());
         future.complete(null);
