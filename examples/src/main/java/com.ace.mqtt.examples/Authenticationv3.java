@@ -9,6 +9,7 @@ import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3BlockingClient;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3Client;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAck;
+import com.nimbusds.jose.JOSEException;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -17,7 +18,8 @@ import static com.ace.mqtt.examples.DiscoverAS.readConfig;
 
 public class Authenticationv3 {
 
-    public static void main(String[] args) throws ASUnreachableException, IOException, FailedAuthenticationException {
+    public static void main(final String[] args)
+            throws ASUnreachableException, IOException, FailedAuthenticationException, JOSEException {
         final Properties config = readConfig();
         final String rsServerIP = config.getProperty("RSServerIP");
         final String asServerIP = config.getProperty("ASServerIP");
@@ -37,7 +39,7 @@ public class Authenticationv3 {
         final MACCalculator macCalculator = new MACCalculator(
                 token.getCnf().getJwk().getK(),
                 token.getCnf().getJwk().getAlg());
-        final byte[] pop = macCalculator.compute_hmac(token.getAccess_token().getBytes());
+        final byte[] pop = macCalculator.signNonce(token.getAccess_token().getBytes());
         final AuthData authData = new AuthData(token.getAccess_token(), pop);
         final Mqtt3ConnAck connAck = client.toBlocking().connectWith()
                 // clean start as required by the draft

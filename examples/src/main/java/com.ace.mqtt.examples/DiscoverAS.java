@@ -51,6 +51,7 @@ public class DiscoverAS {
                 }
             }
         }
+        System.out.println("Discovered server: "+asServerIP);
         if (asServerIP == null) throw new IllegalStateException("Expected to discover the AS server address");
         if (!client.getState().equals(MqttClientState.DISCONNECTED)) {
             client.disconnect();

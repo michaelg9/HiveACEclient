@@ -9,14 +9,13 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
+import com.nimbusds.jose.JOSEException;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.ace.mqtt.utils.StringUtils.bytesToHex;
-import static com.ace.mqtt.utils.StringUtils.hexStringToByteArray;
 
 public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
     private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanism.class.getName());
@@ -36,8 +35,15 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
         final MACCalculator macCalculator = new MACCalculator(
                 token.getCnf().getJwk().getK(),
                 token.getCnf().getJwk().getAlg());
-        final byte[] pop = macCalculator.compute_hmac(token.getAccess_token().getBytes());
-        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", bytesToHex(pop)));
+        final byte[] pop;
+        try {
+            pop = macCalculator.signNonce(token.getAccess_token().getBytes());
+        } catch (final JOSEException e) {
+            e.printStackTrace();
+            future.completeExceptionally(e);
+            return future;
+        }
+        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(pop)));
         final AuthData authData = new AuthData(token.getAccess_token(), pop);
         authBuilder.data(authData.getCompleteAuthData());
         future.complete(null);

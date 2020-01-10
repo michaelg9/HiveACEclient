@@ -10,14 +10,16 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5AuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
+import com.nimbusds.jose.JOSEException;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.ace.mqtt.utils.StringUtils.bytesToHex;
+import static com.ace.mqtt.utils.StringUtils.bytesToBase64;
 
 public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism {
     private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanismWithAuth.class.getName());
@@ -61,13 +63,23 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             future.completeExceptionally(new FailedAuthenticationException("Expected nonce"));
             return future;
         }
-        LOGGER.log(Level.FINE, String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToHex(auth.getData().get())));
+        final ByteBuffer data = auth.getData().get();
+        final short length = data.getShort();
+        final byte[] nonce = new byte[length];
+        data.get(nonce);
+        LOGGER.log(Level.FINE, String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToBase64(nonce)));
         //todo: key encoding?
         final MACCalculator macCalculator = new MACCalculator(
                 requestToken.getCnf().getJwk().getK(), requestToken.getCnf().getJwk().getAlg());
-        final ByteBuffer nonce = auth.getData().get();
-        final byte[] mac = macCalculator.signNonce(nonce);
-        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", bytesToHex(mac)));
+        final byte[] mac;
+        try {
+            mac = macCalculator.signNonce(nonce);
+        } catch (final JOSEException e) {
+            e.printStackTrace();
+            future.completeExceptionally(e);
+            return future;
+        }
+        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(mac)));
         authData.setPop(mac);
         authBuilder.data(authData.getPOPAuthData());
         future.complete(Boolean.TRUE);

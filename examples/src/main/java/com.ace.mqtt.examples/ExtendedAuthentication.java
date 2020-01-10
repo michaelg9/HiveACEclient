@@ -10,6 +10,7 @@ import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
+import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5PublishResult;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -28,7 +29,7 @@ public class ExtendedAuthentication {
         final String clientSecret = config.getProperty("ClientSecret");
         final boolean withChallenge = config.getProperty("ExtendendAuthWithChallenge").equals("true");
         final String grantType = "client_credentials";
-        final String scope = "sub";
+        final String scope = "pub";
         final String aud = "humidity";
         final byte[] secret = (clientID+":"+clientSecret).getBytes();
         final Mqtt5BlockingClient client = Mqtt5Client.builder()
@@ -46,6 +47,7 @@ public class ExtendedAuthentication {
                 .sessionExpiryInterval(0)
                 .enhancedAuth(mechanism)
                 .send();
+        final Mqtt5PublishResult result = client.toBlocking().publishWith().topic(aud).send();
         client.disconnect();
     }
 }
