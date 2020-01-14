@@ -4,9 +4,8 @@ import com.hivemq.client.mqtt.MqttClientSslConfig;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -14,13 +13,14 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
 public class SslUtils {
+
     public static MqttClientSslConfig getSslConfig(
-            final String clientKeyFilename, final String clientTrustStoreFilename, final char[] key) {
+            final String clientKeyFilename, final String clientTrustStoreFilename, final char[] keyStorePass,
+            final char[] trustStorePass) {
         //Create key store
         final KeyStore keyStore;
-        try (final InputStream inKey = new FileInputStream(clientKeyFilename)) {
-            keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(inKey, key);
+        try {
+            keyStore = KeyStore.getInstance(new File(clientKeyFilename), keyStorePass);
         } catch (final IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -28,13 +28,12 @@ public class SslUtils {
 
         final KeyManagerFactory kmf;
         final TrustManagerFactory tmf;
-        try (final InputStream in = new FileInputStream(clientTrustStoreFilename)) {
+        try {
             kmf = KeyManagerFactory
                     .getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            kmf.init(keyStore, key);
+            kmf.init(keyStore, keyStorePass);
             //Create trust store
-            final KeyStore trustStore = KeyStore.getInstance("JKS");
-            trustStore.load(in, key);
+            final KeyStore trustStore = KeyStore.getInstance(new File(clientTrustStoreFilename), trustStorePass);
             tmf = TrustManagerFactory
                     .getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
