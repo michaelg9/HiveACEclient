@@ -22,9 +22,9 @@ public class RequestHandler {
 
     public @NotNull TokenRequestResponse requestToken(final String grantType, final String scope, final String aud)
             throws ASUnreachableException, FailedAuthenticationException {
-        final OauthHttpClient oauthHttpClient = new OauthHttpClient(this.targetAS, this.targetPort);
+        final OauthHttpsClient oauthHttpsClient = new OauthHttpsClient(this.targetAS, this.targetPort);
         final TokenRequest tokenRequest = new TokenRequest(grantType, scope, aud);
-        return oauthHttpClient.tokenRequest(authorizationHeader, tokenRequest);
+        return oauthHttpsClient.secureTokenRequest(authorizationHeader, tokenRequest);
     }
 
 }
