@@ -28,7 +28,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
 
     public EnhancedAuthDataMechanismWithAuth(@NotNull final TokenRequestResponse requestToken) {
         this.requestToken = requestToken;
-        this.authData = new AuthData(requestToken.getAccess_token());
+        this.authData = new AuthData(requestToken.getAccessToken());
     }
 
     @Override
@@ -36,7 +36,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5Connect connect,
             @NotNull final Mqtt5EnhancedAuthBuilder authBuilder) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        final AuthData authData = new AuthData(requestToken.getAccess_token());
+        final AuthData authData = new AuthData(requestToken.getAccessToken());
         authBuilder.data(authData.getTokenAuthData());
         future.complete(null);
         return future;

@@ -23,32 +23,37 @@ import org.jetbrains.annotations.NotNull;
 import static com.ace.mqtt.crypto.SslUtils.getSslConfig;
 
 public final class AceClientBuilder {
+
     public static abstract class ClientBuilder<T extends MqttClientBuilderBase<T>> {
+
         final T builder;
         final ClientConfig clientConfig;
         TokenRequestResponse token = null;
+
         ClientBuilder(final T builder, final ClientConfig clientConfig) {
             this.builder = builder;
             this.clientConfig = clientConfig;
         }
 
-        ClientBuilder<T> withAuthentication() throws ASUnreachableException, FailedAuthenticationException, JOSEException {
+        ClientBuilder<T> withAuthentication()
+                throws ASUnreachableException, FailedAuthenticationException, JOSEException {
             final RequestHandler requestHandler =
-                    new RequestHandler(clientConfig.asServerIP, clientConfig.asServerPort, clientConfig.secret);
+                    new RequestHandler(clientConfig.asServerIP, clientConfig.asServerPort);
             this.token =
-                    requestHandler.requestToken(clientConfig.grantType, clientConfig.scope, clientConfig.aud);
+                    requestHandler.requestToken(
+                            clientConfig.secret, clientConfig.grantType, clientConfig.scope, clientConfig.aud);
             return this;
         }
 
         void initClient() {
             builder
-                .identifier(clientConfig.clientID)
-                .serverHost(clientConfig.rsServerIP)
-                .serverPort(clientConfig.rsServerPort)
-                .sslConfig(getSSLConfig(clientConfig));
+                    .identifier(clientConfig.clientID)
+                    .serverHost(clientConfig.rsServerIP)
+                    .serverPort(clientConfig.rsServerPort)
+                    .sslConfig(getSSLConfig(clientConfig));
         }
 
-        private MqttClientSslConfig getSSLConfig (@NotNull final ClientConfig config) {
+        private MqttClientSslConfig getSSLConfig(@NotNull final ClientConfig config) {
             return getSslConfig(config.clientKeyFilename,
                     config.clientTrustStoreFilename,
                     config.keyStorePass, config.trustStorePass);
@@ -56,6 +61,7 @@ public final class AceClientBuilder {
     }
 
     public static class Ace3ClientBuilder extends ClientBuilder<Mqtt3ClientBuilder> {
+
         Ace3ClientBuilder(final Mqtt3ClientBuilder builder, final ClientConfig clientConfig) {
             super(builder, clientConfig);
         }
@@ -67,9 +73,12 @@ public final class AceClientBuilder {
             final MACCalculator macCalculator = new MACCalculator(
                     token.getCnf().getJwk().getK(),
                     token.getCnf().getJwk().getAlg());
-            final byte[] pop = macCalculator.signNonce(token.getAccess_token().getBytes());
-            final AuthData authData = new AuthData(token.getAccess_token(), pop);
-            this.builder.simpleAuth().username(authData.getToken()).password(authData.getPOPAuthData()).applySimpleAuth();
+            final byte[] pop = macCalculator.signNonce(token.getAccessToken().getBytes());
+            final AuthData authData = new AuthData(token.getAccessToken(), pop);
+            this.builder.simpleAuth()
+                    .username(authData.getToken())
+                    .password(authData.getPOPAuthData())
+                    .applySimpleAuth();
             return this;
         }
 
@@ -80,6 +89,7 @@ public final class AceClientBuilder {
     }
 
     public static class Ace5ClientBuilder extends ClientBuilder<Mqtt5ClientBuilder> {
+
         Ace5ClientBuilder(final Mqtt5ClientBuilder builder, final ClientConfig clientConfig) {
             super(builder, clientConfig);
         }

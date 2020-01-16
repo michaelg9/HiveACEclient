@@ -1,9 +1,13 @@
 package com.ace.mqtt.utils.dataclasses;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public final class TokenRequestResponse {
-    private String access_token;
+    @JsonProperty("access_token")
+    private String accessToken;
     private String profile;
-    private String token_type;
+    @JsonProperty("token_type")
+    private String tokenType;
     private long exp;
     private CNF cnf;
 
@@ -33,16 +37,16 @@ public final class TokenRequestResponse {
         }
     }
 
-    public String getAccess_token() {
-        return access_token;
+    public String getAccessToken() {
+        return accessToken;
     }
 
     public String getProfile() {
         return profile;
     }
 
-    public String getToken_type() {
-        return token_type;
+    public String getTokenType() {
+        return tokenType;
     }
 
     public long getExp() {

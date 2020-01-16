@@ -37,14 +37,14 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
                 token.getCnf().getJwk().getAlg());
         final byte[] pop;
         try {
-            pop = macCalculator.signNonce(token.getAccess_token().getBytes());
+            pop = macCalculator.signNonce(token.getAccessToken().getBytes());
         } catch (final JOSEException e) {
             e.printStackTrace();
             future.completeExceptionally(e);
             return future;
         }
         LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(pop)));
-        final AuthData authData = new AuthData(token.getAccess_token(), pop);
+        final AuthData authData = new AuthData(token.getAccessToken(), pop);
         authBuilder.data(authData.getCompleteAuthData());
         future.complete(null);
         return future;

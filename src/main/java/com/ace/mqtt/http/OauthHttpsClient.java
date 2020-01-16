@@ -2,6 +2,8 @@ package com.ace.mqtt.http;
 
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
+import com.ace.mqtt.utils.dataclasses.ClientRegistrationRequest;
+import com.ace.mqtt.utils.dataclasses.ClientRegistrationResponse;
 import com.ace.mqtt.utils.dataclasses.TokenRequest;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,11 +26,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 class OauthHttpsClient {
-
     private final static Logger LOGGER = Logger.getLogger(OauthHttpsClient.class.getName());
-
-    @NotNull
-    private final EndpointRetriever endpointRetriever;
+    @NotNull private final EndpointRetriever endpointRetriever;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OauthHttpsClient(final String OauthServerAddress, final String OauthServerPort) {
@@ -86,7 +85,7 @@ class OauthHttpsClient {
             con = (HttpsURLConnection) url.openConnection();
         } catch (final IOException e) {
             e.printStackTrace();
-            throw new ASUnreachableException("Unable to contact AS server");
+            throw new ASUnreachableException("Unable to contact AS server", e);
         }
         try {
             con.setRequestMethod(method);
@@ -106,6 +105,35 @@ class OauthHttpsClient {
      */
     private HostnameVerifier getInvalidHostnameVerifier() {
         return (s, sslSession) -> true;
+    }
+
+    private int receive(final HttpsURLConnection con, final StringBuilder response) throws ASUnreachableException {
+        final int responseCode;
+        try (final BufferedReader in = new BufferedReader(
+                new InputStreamReader(con.getInputStream()))) {
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            responseCode = con.getResponseCode();
+        } catch (final IOException e) {
+            e.printStackTrace();
+            throw new ASUnreachableException("Unable to receive request response from AS server", e);
+        }
+        LOGGER.log(
+                Level.FINE,
+                String.format("Response:\t\nHeaders:\t%s\nBody:\t%s", con.getHeaderFields(), response.toString()));
+        return responseCode;
+    }
+
+    private void send(final String body, final HttpsURLConnection con) throws ASUnreachableException {
+        try (final OutputStreamWriter outputStream = new OutputStreamWriter(con.getOutputStream())) {
+            outputStream.write(body);
+            outputStream.flush();
+        } catch (final IOException e) {
+            e.printStackTrace();
+            throw new ASUnreachableException("Unable to send request to AS server", e);
+        }
     }
 
     @NotNull
@@ -138,7 +166,7 @@ class OauthHttpsClient {
         final int responseCode = receive(con, response);
         final String responseString = response.toString();
         con.disconnect();
-        if (responseCode != 200) {
+        if ((int) (responseCode / 100) != 2) {
             // token request failed, invalid token
             throw new FailedAuthenticationException(responseString);
         }
@@ -152,32 +180,44 @@ class OauthHttpsClient {
         return tokenRequestResponse;
     }
 
-    private int receive(final HttpsURLConnection con, final StringBuilder response) throws ASUnreachableException {
-        final int responseCode;
-        try (final BufferedReader in = new BufferedReader(
-                new InputStreamReader(con.getInputStream()))) {
-            String inputLine;
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            responseCode = con.getResponseCode();
-        } catch (final IOException e) {
+    @NotNull
+    public ClientRegistrationResponse registerClient(
+            @NotNull final ClientRegistrationRequest requestBody
+    ) throws ASUnreachableException, FailedAuthenticationException {
+        final String stringifiedBody;
+        try {
+            stringifiedBody = new ObjectMapper().writeValueAsString(requestBody);
+        } catch (final JsonProcessingException e) {
             e.printStackTrace();
-            throw new ASUnreachableException("Unable to receive request response from AS server");
+            throw new IllegalArgumentException(e.getMessage());
         }
+        final HttpsURLConnection con = getHttpsClient(
+                endpointRetriever.getEndpoint(EndpointRetriever.ASEndpoint.CLIENT_REG),
+                "POST",
+                true);
+        con.setDoOutput(true);
+        con.setDoInput(true);
+        con.setRequestProperty("Content-Type", "application/json");
         LOGGER.log(
                 Level.FINE,
-                String.format("Response:\t\nHeaders:\t%s\nBody:\t%s", con.getHeaderFields(), response.toString()));
-        return responseCode;
-    }
-
-    private void send(final String body, final HttpsURLConnection con) throws ASUnreachableException {
-        try (final OutputStreamWriter outputStream = new OutputStreamWriter(con.getOutputStream())) {
-            outputStream.write(body);
-            outputStream.flush();
-        } catch (final IOException e) {
-            e.printStackTrace();
-            throw new ASUnreachableException("Unable to send request to AS server");
+                String.format("Request:\t%s\nHeaders:\t%s\nBody:\t%s", con.toString(), con.getRequestProperties(),
+                        stringifiedBody));
+        send(stringifiedBody, con);
+        final StringBuilder response = new StringBuilder();
+        final int responseCode = receive(con, response);
+        final String responseString = response.toString();
+        con.disconnect();
+        if ((int) (responseCode / 100) != 2) {
+            // token request failed, invalid token
+            throw new FailedAuthenticationException(responseString);
         }
+        final ClientRegistrationResponse registrationResponse;
+        try {
+            registrationResponse = objectMapper.readValue(responseString, ClientRegistrationResponse.class);
+        } catch (final JsonProcessingException e) {
+            // Should never happen
+            throw new IllegalArgumentException("Failed to parse POST response", e);
+        }
+        return registrationResponse;
     }
 }
