@@ -3,20 +3,18 @@ package com.ace.mqtt.examples;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
 import com.ace.mqtt.builder.AceClientBuilder;
-import com.ace.mqtt.utils.ClientConfig;
+import com.ace.mqtt.config.ClientConfig;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3Client;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAck;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAckReturnCode;
 import com.nimbusds.jose.JOSEException;
-
-import java.io.IOException;
 
 import static com.ace.mqtt.examples.DiscoverAS.getConfigFilename;
 
 public class Authenticationv3 {
 
     public static void main(final String[] args)
-            throws ASUnreachableException, IOException, FailedAuthenticationException, JOSEException {
+            throws ASUnreachableException, FailedAuthenticationException, JOSEException {
         final ClientConfig config = ClientConfig.getInstance(getConfigFilename(args));
         final Mqtt3Client client = AceClientBuilder.createV3Client(config).withAuthentication().build();
         final Mqtt3ConnAck connAck = client.toBlocking().connectWith()

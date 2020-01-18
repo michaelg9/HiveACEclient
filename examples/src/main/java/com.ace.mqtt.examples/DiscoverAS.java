@@ -1,14 +1,13 @@
 package com.ace.mqtt.examples;
 
 import com.ace.mqtt.builder.AceClientBuilder;
-import com.ace.mqtt.utils.ClientConfig;
+import com.ace.mqtt.config.ClientConfig;
 import com.hivemq.client.mqtt.MqttClientState;
 import com.hivemq.client.mqtt.datatypes.MqttUtf8String;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
 import com.hivemq.client.mqtt.mqtt5.datatypes.Mqtt5UserProperty;
 import com.hivemq.client.mqtt.mqtt5.exceptions.Mqtt5ConnAckException;
 
-import java.io.IOException;
 import java.util.List;
 
 import static com.ace.mqtt.utils.Constants.CONFIG_ENV_NAME;
@@ -25,13 +24,12 @@ public class DiscoverAS {
         return result;
     }
 
-    public static void main(final String[] args) throws IOException {
+    public static void main(final String[] args) {
         final ClientConfig config = ClientConfig.getInstance(getConfigFilename(args));
-        final Mqtt5Client client = AceClientBuilder.createV5Client(config).withNoAuthentication().build();
+        final Mqtt5Client client = AceClientBuilder.createV5Client(config).discoverASServer().build();
         String cnonce = null;
         String asServerIP = null;
         try {
-
             client.toBlocking().connectWith()
                     .cleanStart(true)
                     .sessionExpiryInterval(0)
@@ -47,7 +45,6 @@ public class DiscoverAS {
                 }
             }
         }
-        System.out.println("Discovered server: " + asServerIP);
         if (!client.getState().equals(MqttClientState.DISCONNECTED)) {
             client.toBlocking().disconnect();
             throw new IllegalStateException("Client shouldn't be connected");
@@ -55,5 +52,7 @@ public class DiscoverAS {
         if (asServerIP == null) {
             throw new IllegalStateException("Expected to discover the AS server address");
         }
+        System.out.println("Discovered server: " + asServerIP);
+        config.setAsServerIP(asServerIP);
     }
 }

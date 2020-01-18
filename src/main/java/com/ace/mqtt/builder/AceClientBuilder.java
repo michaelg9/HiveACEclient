@@ -7,9 +7,11 @@ import com.ace.mqtt.auth.EnhancedNoAuthDataMechanism;
 import com.ace.mqtt.crypto.MACCalculator;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
+import com.ace.mqtt.exceptions.UnregisteredClientException;
 import com.ace.mqtt.http.RequestHandler;
 import com.ace.mqtt.utils.AuthData;
-import com.ace.mqtt.utils.ClientConfig;
+import com.ace.mqtt.config.ClientConfig;
+import com.ace.mqtt.utils.dataclasses.ClientRegistrationResponse;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
 import com.hivemq.client.mqtt.MqttClientBuilderBase;
 import com.hivemq.client.mqtt.MqttClientSslConfig;
@@ -20,9 +22,13 @@ import com.hivemq.client.mqtt.mqtt5.Mqtt5ClientBuilder;
 import com.nimbusds.jose.JOSEException;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.logging.Logger;
+
 import static com.ace.mqtt.crypto.SslUtils.getSslConfig;
 
 public final class AceClientBuilder {
+
+    private final static Logger LOGGER = Logger.getLogger(AceClientBuilder.class.getName());
 
     public static abstract class ClientBuilder<T extends MqttClientBuilderBase<T>> {
 
@@ -39,9 +45,19 @@ public final class AceClientBuilder {
                 throws ASUnreachableException, FailedAuthenticationException, JOSEException {
             final RequestHandler requestHandler =
                     new RequestHandler(clientConfig.asServerIP, clientConfig.asServerPort);
+            if (!clientConfig.isClientRegistered()) {
+                LOGGER.info("Client not registered. Attempting to register");
+                if (!clientConfig.canClientRegister()) {
+                    throw new UnregisteredClientException(
+                            "Client is unregistered and no registration credentials found");
+                }
+                final ClientRegistrationResponse response =
+                        requestHandler.registerClient(clientConfig.clientUsername, clientConfig.clientUri);
+                clientConfig.registerClient(response);
+            }
             this.token =
                     requestHandler.requestToken(
-                            clientConfig.secret, clientConfig.grantType, clientConfig.scope, clientConfig.aud);
+                            clientConfig.getHTTPAuthSecret(), clientConfig.grantType, clientConfig.scope, clientConfig.aud);
             return this;
         }
 
@@ -54,8 +70,8 @@ public final class AceClientBuilder {
         }
 
         private MqttClientSslConfig getSSLConfig(@NotNull final ClientConfig config) {
-            return getSslConfig(config.clientKeyFilename,
-                    config.clientTrustStoreFilename,
+            return getSslConfig(config.getClientKeyFilename().toString(),
+                    config.getClientTrustStoreFilename().toString(),
                     config.keyStorePass, config.trustStorePass);
         }
     }
@@ -94,7 +110,7 @@ public final class AceClientBuilder {
             super(builder, clientConfig);
         }
 
-        public Ace5ClientBuilder withNoAuthentication() {
+        public Ace5ClientBuilder discoverASServer() {
             builder.enhancedAuth(new EnhancedNoAuthDataMechanism());
             return this;
         }

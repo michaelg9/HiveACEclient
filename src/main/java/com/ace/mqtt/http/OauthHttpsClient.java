@@ -25,6 +25,8 @@ import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static com.ace.mqtt.utils.StringUtils.bytesToBase64;
+
 class OauthHttpsClient {
     private final static Logger LOGGER = Logger.getLogger(OauthHttpsClient.class.getName());
     @NotNull private final EndpointRetriever endpointRetriever;
@@ -154,7 +156,7 @@ class OauthHttpsClient {
                 true);
         con.setDoOutput(true);
         con.setDoInput(true);
-        final String encodedAuth = Base64.getEncoder().encodeToString(authorizationHeader);
+        final String encodedAuth = bytesToBase64(authorizationHeader);
         con.setRequestProperty("Authorization", "Basic " + encodedAuth);
         con.setRequestProperty("Content-Type", "application/json");
         LOGGER.log(

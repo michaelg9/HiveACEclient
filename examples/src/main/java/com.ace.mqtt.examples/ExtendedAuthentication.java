@@ -3,20 +3,18 @@ package com.ace.mqtt.examples;
 import com.ace.mqtt.builder.AceClientBuilder;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
-import com.ace.mqtt.utils.ClientConfig;
+import com.ace.mqtt.config.ClientConfig;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAckReasonCode;
 import com.nimbusds.jose.JOSEException;
-
-import java.io.IOException;
 
 import static com.ace.mqtt.examples.DiscoverAS.getConfigFilename;
 
 public class ExtendedAuthentication {
 
     public static void main(final String[] args)
-            throws ASUnreachableException, FailedAuthenticationException, IOException, JOSEException {
+            throws ASUnreachableException, FailedAuthenticationException, JOSEException {
         final ClientConfig config = ClientConfig.getInstance(getConfigFilename(args));
         final Mqtt5Client client = AceClientBuilder.createV5Client(config).withAuthentication(true).build();
         final Mqtt5ConnAck connAck = client.toBlocking().connectWith()
