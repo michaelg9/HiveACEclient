@@ -1,7 +1,7 @@
 # How to create server and client side TLS keys
 
 The detailed steps can be found [here](https://www.hivemq.com/docs/4.2/hivemq/howtos.html).
-**Note:** Change the password from changeme from the below steps.
+**Note:** Change the password from changeme to your desired password.
 
 - Create a private key for the broker in the java key store format:
     ```bash

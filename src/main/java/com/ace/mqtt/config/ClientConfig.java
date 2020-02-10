@@ -1,7 +1,6 @@
 package com.ace.mqtt.config;
 
 import com.ace.mqtt.utils.dataclasses.ClientRegistrationResponse;
-import io.reactivex.annotations.NonNull;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,12 +11,18 @@ import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import static com.ace.mqtt.config.ConfigConstants.LOCAL_CONFIG_FILENAME;
+import static com.ace.mqtt.config.ConfigConstants.*;
 import static com.ace.mqtt.config.ConfigConstants.PropertiesKeys.*;
 import static com.ace.mqtt.utils.StringUtils.bytesToBase64;
 import static com.ace.mqtt.utils.StringUtils.combineByteArrays;
 
 public class ClientConfig implements Serializable {
+
+    public enum TRANSPORTTYPE {
+        TLS,
+        TCP,
+        ACE;
+    }
 
     private final static Logger LOGGER = Logger.getLogger(ClientConfig.class.getName());
     private static ClientConfig instance = null;
@@ -25,10 +30,12 @@ public class ClientConfig implements Serializable {
     final private Properties properties;
     @NotNull
     public final String rsServerIP;
-    public final int rsServerPort;
+    public final int rsServerTLSPort;
+    public final int rsServerTCPPort;
     @Nullable
     public String asServerIP;
-    public final String asServerPort;
+    @Nullable
+    public String asServerPort;
     @Nullable
     public String clientID;
     @Nullable
@@ -37,17 +44,19 @@ public class ClientConfig implements Serializable {
     public final String clientUsername;
     @Nullable
     public final String clientUri;
-    @NotNull
+    @Nullable
     public final char[] keyStorePass;
-    @NotNull
+    @Nullable
     public final char[] trustStorePass;
-    @NotNull
-    public final String configDir;
+    @Nullable
+    public final String certDir;
     public final String grantType;
-    public final String scope;
+    @NotNull
+    private String scope;
     public final String aud;
+    public final TRANSPORTTYPE transportType;
 
-    private ClientConfig(@NonNull final Properties config) {
+    private ClientConfig(@NotNull final Properties config) {
         this.properties = config;
         this.clientSecret =
                 config.getProperty(CLIENT_SECRET) == null ? null : config.getProperty(CLIENT_SECRET).getBytes();
@@ -55,23 +64,38 @@ public class ClientConfig implements Serializable {
         this.clientUsername = config.getProperty(CLIENT_USERNAME);
         this.clientUri = config.getProperty(CLIENT_URI);
         this.rsServerIP = config.getProperty(RS_SERVER_IP);
-        this.rsServerPort = Integer.parseInt(config.getProperty(RS_SERVER_PORT));
+        this.rsServerTLSPort = Integer.parseInt(config.getProperty(RS_TLS_SERVER_PORT, DEFAULT_TLS_PORT));
+        this.rsServerTCPPort = Integer.parseInt(config.getProperty(RS_TCP_SERVER_PORT, DEFAULT_TCP_PORT));
         this.asServerIP = config.getProperty(AS_SERVER_IP);
-        this.asServerPort = config.getProperty(AS_SERVER_PORT);
-        this.keyStorePass = config.getProperty(KEYSTORE_PASS).toCharArray();
-        this.trustStorePass = config.getProperty(TRUSTSTORE_PASS).toCharArray();
-        this.configDir = config.getProperty(CONFIG_DIR);
+        this.asServerPort = config.getProperty(AS_SERVER_PORT, DEFAULT_AS_PORT);
+        this.keyStorePass = config.containsKey(KEYSTORE_PASS) ? config.getProperty(KEYSTORE_PASS).toCharArray() : null;
+        this.trustStorePass =
+                config.containsKey(TRUSTSTORE_PASS) ? config.getProperty(TRUSTSTORE_PASS).toCharArray() : null;
+        this.certDir = config.getProperty(CERT_DIR);
         this.grantType = "client_credentials";
-        this.scope = "pub";
-        this.aud = "humidity";
+        this.scope = config.getProperty(SCOPE);
+        this.aud = config.getProperty(TOPIC);
+        String type = config.getProperty(TRANSPORT, TRANSPORTTYPE.TLS.name()).toUpperCase();
+        try {
+            TRANSPORTTYPE.valueOf(type);
+        } catch (final IllegalArgumentException e) {
+            LOGGER.info("Illegal transport type found in config file: " + type);
+            type = TRANSPORTTYPE.TLS.name();
+        }
+        this.transportType = TRANSPORTTYPE.valueOf(type);
+        LOGGER.info("Transport type set to: " + this.transportType.name());
+        if (this.transportType.equals(TRANSPORTTYPE.TLS) &&
+                (this.certDir == null || this.keyStorePass == null || this.trustStorePass == null)) {
+            throw new IllegalStateException("Incomplete info found for TLS transport");
+        }
     }
 
     public Path getClientKeyFilename() {
-        return Paths.get(configDir, "TLS", "mqtt-paho-client-1.jks");
+        return Paths.get(certDir, "client-key.jks");
     }
 
     public Path getClientTrustStoreFilename() {
-        return Paths.get(configDir, "TLS", "mqtt-client-trust-store.jks");
+        return Paths.get(certDir, "client-truststore.jks");
     }
 
     public byte[] getHTTPAuthSecret() {
@@ -87,14 +111,23 @@ public class ClientConfig implements Serializable {
         return !(this.clientUsername == null || this.clientUri == null);
     }
 
-    public void setAsServerIP(@NotNull final String asServerIP) {
+    public boolean isASInfoAvailable() {
+        return this.asServerIP != null && this.asServerPort != null;
+    }
+
+    public void setAsServerIP(final String asServerIP) {
         this.asServerIP = asServerIP;
-        persist();
+        this.properties.setProperty(AS_SERVER_IP, asServerIP);
+    }
+
+    public void setAsServerPort(final String asServerPort) {
+        this.asServerPort = asServerPort;
+        this.properties.setProperty(AS_SERVER_PORT, asServerPort);
     }
 
     private void setClientID(final String clientID) {
-        this.properties.setProperty(CLIENT_ID, clientID);
         this.clientID = clientID;
+        this.properties.setProperty(CLIENT_ID, clientID);
     }
 
     private void setClientSecret(@NotNull final byte[] clientSecret) {
@@ -102,9 +135,18 @@ public class ClientConfig implements Serializable {
         this.properties.setProperty(CLIENT_SECRET, bytesToBase64(clientSecret));
     }
 
-    private boolean persist() {
+    @NotNull
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(@NotNull final String scope) {
+        this.scope = scope;
+    }
+
+    public boolean persist(@NotNull final String dir) {
         LOGGER.info("Persisting new properties");
-        try (final OutputStream out = new FileOutputStream(Paths.get(configDir, LOCAL_CONFIG_FILENAME).toString())) {
+        try (final OutputStream out = new FileOutputStream(Paths.get(dir, LOCAL_CONFIG_FILENAME).toString())) {
             properties.store(out, "---No comments---");
         } catch (final IOException e) {
             e.printStackTrace();
@@ -119,9 +161,6 @@ public class ClientConfig implements Serializable {
         }
         this.setClientID(response.getClientID());
         this.setClientSecret(response.getClientSecret());
-        if (!persist()) {
-            LOGGER.warning("Unable to save properties after obtaining registration credentials");
-        }
     }
 
     @Nullable
@@ -174,13 +213,9 @@ public class ClientConfig implements Serializable {
                 properties = new Properties();
                 properties.load(input);
             } catch (final IOException e) {
-                LOGGER.warning("Unable to read specified config file");
-                e.printStackTrace();
-                properties = null;
+                LOGGER.warning("Unable to read specified config file " + configFilename);
+                throw new IllegalStateException("Client unable to be configured", e);
             }
-        }
-        if (properties == null) {
-            throw new IllegalStateException("Client unable to be configured");
         }
         instance = new ClientConfig(properties);
         return instance;

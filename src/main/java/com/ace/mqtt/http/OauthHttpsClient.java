@@ -119,7 +119,6 @@ class OauthHttpsClient {
             }
             responseCode = con.getResponseCode();
         } catch (final IOException e) {
-            e.printStackTrace();
             throw new ASUnreachableException("Unable to receive request response from AS server", e);
         }
         LOGGER.log(
@@ -168,7 +167,7 @@ class OauthHttpsClient {
         final int responseCode = receive(con, response);
         final String responseString = response.toString();
         con.disconnect();
-        if ((int) (responseCode / 100) != 2) {
+        if ((responseCode / 100) != 2) {
             // token request failed, invalid token
             throw new FailedAuthenticationException(responseString);
         }

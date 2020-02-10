@@ -1,3 +1,8 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
+    id 'java'
+}
+
 description 'ACE MQTT Client examples'
 
 ext {
@@ -5,6 +10,15 @@ ext {
     readableName = 'ACE mqtt client examples'
 }
 
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'ACE-MQTT'
+        attributes 'Implementation-Vendor': 'Michael'
+        attributes 'Main-Class': 'com.ace.mqtt.examples.Main'
+    }
+}
+
 dependencies {
     implementation rootProject
 }
+
