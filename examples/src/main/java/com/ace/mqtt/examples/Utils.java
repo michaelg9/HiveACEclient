@@ -25,7 +25,7 @@ public class Utils {
                     if (throwable != null) {
                         LOGGER.severe("Failed publish :( " + throwable);
                     } else {
-                        LOGGER.info("Successful publish " + publish);
+                        LOGGER.fine("Successful publish " + publish);
                     }
                     if (disconnect) client.toBlocking().disconnect();
                 });

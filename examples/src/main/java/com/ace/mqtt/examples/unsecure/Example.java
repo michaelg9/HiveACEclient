@@ -1,8 +1,7 @@
 package com.ace.mqtt.examples.unsecure;
 
-import com.ace.mqtt.builder.AceClientBuilder;
+import com.ace.mqtt.builder.ClientBuilder;
 import com.ace.mqtt.config.ClientConfig;
-import com.ace.mqtt.examples.Utils;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
@@ -32,7 +31,7 @@ public class Example {
     public static void run(final String configFile)
             throws JOSEException, ASUnreachableException, FailedAuthenticationException {
         final ClientConfig config = ClientConfig.getInstance(configFile);
-        final Mqtt3Client client = new AceClientBuilder.Ace3ClientBuilder(config).withAuthentication().connect();
+        final Mqtt3Client client = new ClientBuilder.Ace3ClientBuilder(config).withAuthentication(true).connect();
         final byte[] payload;
         try {
             payload = encryptPayload("This is my message".getBytes(), "thisispass".toCharArray());

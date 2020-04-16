@@ -1,68 +1,45 @@
 package com.ace.mqtt.examples.simplev3;
 
-import com.ace.mqtt.builder.AceClientBuilder;
+import com.ace.mqtt.builder.ClientBuilder;
 import com.ace.mqtt.config.ClientConfig;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
-import com.hivemq.client.mqtt.datatypes.MqttQos;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3Client;
 import com.nimbusds.jose.JOSEException;
+
+import java.util.Arrays;
 
 public class Example {
 
     public static void main(final String[] args)
-            throws ASUnreachableException, FailedAuthenticationException, JOSEException {
+            throws ASUnreachableException, FailedAuthenticationException, JOSEException, InterruptedException {
         if (args.length == 0) System.exit(1);
-        run(args[0]);
+        run(args[0], 1,1, true);
     }
 
-    private static Mqtt3Client getClient(final ClientConfig config)
+    private static Mqtt3Client getClient(final ClientConfig config, final boolean withAuthentication)
             throws JOSEException, ASUnreachableException, FailedAuthenticationException {
-        final Mqtt3Client client = new AceClientBuilder.Ace3ClientBuilder(config)
-                .withAuthentication()
-                .connect();
+        final ClientBuilder.Ace3ClientBuilder builder = new ClientBuilder.Ace3ClientBuilder(config);
+        final Mqtt3Client client = withAuthentication ? builder.withAuthentication(true).connect() : builder.connect();
         assert client.getState().isConnected();
         return client;
     }
 
-    public static void run(final String configFile)
-            throws ASUnreachableException, FailedAuthenticationException, JOSEException {
-        final ClientConfig config = ClientConfig.getInstance(configFile);
-        final Mqtt3Client client =  getClient(config);
-        publish(client, config);
-    }
-
-    public static void run(final String configFile, final int livePeriod)
+    public static void run(final String configFile, int repeatIterations, final int repeatDelay, final boolean withAuthentication)
             throws ASUnreachableException, FailedAuthenticationException, JOSEException, InterruptedException {
         final ClientConfig config = ClientConfig.getInstance(configFile);
-        while (true) {
-            final Mqtt3Client client =  getClient(config);
+        final long[] times = new long[repeatIterations * 2];
+        int iteration = 0;
+        while (repeatIterations-- > 0) {
+            final long timeStart = System.currentTimeMillis();
+            final Mqtt3Client client =  getClient(config, withAuthentication);
+            final long timeStop = System.currentTimeMillis();
             client.toBlocking().disconnect();
-            Thread.sleep(livePeriod);
+            times[iteration] = timeStart;
+            times[iteration + 1] = timeStop;
+            iteration += 2;
+            Thread.sleep(repeatDelay);
         }
-    }
-
-    private static void publish(final Mqtt3Client client, final ClientConfig config) {
-        client.toAsync()
-                .publishWith()
-                .topic(config.aud)
-                .payload("This is a message to the world".getBytes())
-                .qos(MqttQos.AT_LEAST_ONCE)
-                .send()
-                .whenComplete((publish, throwable) -> {
-                    if (throwable != null) {
-                        throwable.printStackTrace();
-                        System.out.println("Failed publish :( " + throwable);
-                    } else if (!client.getState().isConnected()) {
-                        System.out.println("Failed publish :(  broker disconnected us. Probably authorization error");
-                    } else {
-                        System.out.println("Successful publish " + publish);
-                    }
-                    if (client.getState().isConnected()) {
-                        client.toBlocking().disconnect();
-                    } else {
-                        throw new IllegalStateException("Should have been connected");
-                    }
-                });
+        System.out.println(Arrays.toString(times));
     }
 }
