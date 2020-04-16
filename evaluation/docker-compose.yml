@@ -1,19 +1,19 @@
 version: '3'
 services:
-#  ace_subscriber_tcp:
-#    image: "ace/client:latest"
-#    container_name: ace_subscriber_tcp
-#    command:
-#      - subscriber
-#      - /opt/mqtt/config/properties/tcp1.properties
-#    networks:
-#      - ace_net
 #  ace_subscriber_tls:
 #    image: "ace/client:latest"
 #    container_name: ace_subscriber_tls
 #    command:
 #      - subscriber
-#      - /opt/mqtt/config/properties/tls1.properties
+#      - /opt/mqtt/config/properties/tls2.properties
+#    networks:
+#      - ace_net
+#  ace_subscriber_tcp:
+#    image: "ace/client:latest"
+#    container_name: ace_subscriber_tcp
+#    command:
+#      - subscriber
+#      - /opt/mqtt/config/properties/tcp2.properties
 #    networks:
 #      - ace_net
 #  ace_publisher_tls:
@@ -21,8 +21,9 @@ services:
 #    container_name: ace_publisher_tls
 #    command:
 #      - publisher
-#      - /opt/mqtt/config/properties/tls2.properties
+#      - /opt/mqtt/config/properties/tls1.properties
 #      - "150000"
+#      - "5000"
 #    networks:
 #      - ace_net
 #  ace_publisher_tcp:
@@ -30,70 +31,54 @@ services:
 #    container_name: ace_publisher_tcp
 #    command:
 #      - publisher
-#      - /opt/mqtt/config/properties/tcp2.properties
+#      - /opt/mqtt/config/properties/tcp1.properties
 #      - "150000"
+#      - "5000"
 #    networks:
 #      - ace_net
-  ace_challenge_auth_tcp:
+  plain_mqtt_auth:
     image: "ace/client:latest"
-    container_name: ace_challenge_auth_tcp
-    command:
-      - challenge
-      - /opt/mqtt/config/properties/tcp3.properties
-#     reconnect every 1 minutes
-      - "60000"
-    networks:
-      - ace_net
-  ace_challenge_auth_tls:
-    image: "ace/client:latest"
-    container_name: ace_challenge_auth_tls
-    command:
-      - challenge
-      - /opt/mqtt/config/properties/tls3.properties
-#     reconnect every 1 minutes
-      - "60000"
-    networks:
-      - ace_net
-  ace_simple_authv3_tcp:
-    image: "ace/client:latest"
-    container_name: ace_simple_authv3_tcp
-    command:
-      - simplev3
-      - /opt/mqtt/config/properties/tcp4.properties
-      #     reconnect every 1 minutes
-      - "60000"
-    networks:
-      - ace_net
-  ace_simple_authv3_tls:
-    image: "ace/client:latest"
-    container_name: ace_simple_authv3_tls
-    command:
-      - simplev3
-      - /opt/mqtt/config/properties/tls4.properties
-      #     reconnect every 1 minutes
-      - "60000"
-    networks:
-      - ace_net
-  ace_simple_authv5_tcp:
-    image: "ace/client:latest"
-    container_name: ace_simple_authv5_tcp
+    container_name: plain_mqtt_auth
     command:
       - simplev5
-      - /opt/mqtt/config/properties/tcp5.properties
-      #     reconnect every 1 minutes
-      - "60000"
+      - /opt/mqtt/config/properties/tcp1.properties
+      - "1000"
+      - "10000"
+      - "false"
     networks:
       - ace_net
-  ace_simple_authv5_tls:
-    image: "ace/client:latest"
-    container_name: ace_simple_authv5_tls
-    command:
-      - simplev5
-      - /opt/mqtt/config/properties/tls5.properties
-      #     reconnect every 1 minutes
-      - "60000"
-    networks:
-      - ace_net
+    ports:
+    - 9090:9090
+#  ace_challenge_auth_tls:
+#    image: "ace/client:latest"
+#    container_name: ace_challenge_auth_tls
+#    command:
+#      - challenge
+#      - /opt/mqtt/config/properties/tls3.properties
+#      - "1000"
+#      - "10000"
+#    networks:
+#      - ace_net
+#  ace_simple_authv3_tls:
+#    image: "ace/client:latest"
+#    container_name: ace_simple_authv3_tls
+#    command:
+#      - simplev3
+#      - /opt/mqtt/config/properties/tls4.properties
+#      - "1000"
+#      - "10000"
+#    networks:
+#      - ace_net
+#  ace_simple_authv5_tls:
+#    image: "ace/client:latest"
+#    container_name: ace_simple_authv5_tls
+#    command:
+#      - simplev5
+#      - /opt/mqtt/config/properties/tls5.properties
+#      - "1000"
+#      - "10000"
+#    networks:
+#      - ace_net
 networks:
   ace_net:
     external: true
