@@ -1,14 +1,14 @@
 package com.ace.mqtt.builder;
 
-import com.ace.mqtt.auth.EnhancedAuthDataMechanism;
-import com.ace.mqtt.auth.EnhancedAuthDataMechanismWithAuth;
-import com.ace.mqtt.auth.EnhancedNoAuthDataMechanism;
+import com.ace.mqtt.auth.SimpleV5AuthMechanism;
+import com.ace.mqtt.auth.ChallengeAuthMechanism;
+import com.ace.mqtt.auth.DiscoveryAuthMechanism;
 import com.ace.mqtt.config.ClientConfig;
 import com.ace.mqtt.crypto.MACCalculator;
 import com.ace.mqtt.exceptions.ASUnreachableException;
 import com.ace.mqtt.exceptions.FailedAuthenticationException;
 import com.ace.mqtt.exceptions.UnregisteredClientException;
-import com.ace.mqtt.http.RequestHandler;
+import com.ace.mqtt.http.RestRequestHandler;
 import com.ace.mqtt.utils.AuthData;
 import com.ace.mqtt.utils.dataclasses.ClientRegistrationResponse;
 import com.ace.mqtt.utils.dataclasses.TokenRequestResponse;
@@ -38,12 +38,9 @@ import java.util.logging.Logger;
 import static com.ace.mqtt.crypto.SslUtils.encryptUsingPK;
 import static com.ace.mqtt.crypto.SslUtils.getSslConfig;
 
-public final class AceClientBuilder {
+public class ClientBuilder<T extends MqttClientBuilderBase<T>> {
 
-    private final static Logger LOGGER = Logger.getLogger(AceClientBuilder.class.getName());
-
-    public static abstract class ClientBuilder<T extends MqttClientBuilderBase<T>> {
-
+     private final static Logger LOGGER = Logger.getLogger(ClientBuilder.class.getName());
         final T builder;
         final ClientConfig clientConfig;
 
@@ -52,7 +49,7 @@ public final class AceClientBuilder {
             this.clientConfig = clientConfig;
         }
 
-        private void registerClient(final RequestHandler requestHandler)
+        private void registerClient(final RestRequestHandler requestHandler)
                 throws ASUnreachableException, FailedAuthenticationException {
             if (clientConfig.isClientRegistered()) {
                 throw new IllegalStateException("Attempting to re-register already registered user");
@@ -60,7 +57,7 @@ public final class AceClientBuilder {
             if (!clientConfig.isASInfoAvailable()) {
                 throw new IllegalStateException("Attempting to register client before discovering AS server");
             }
-            LOGGER.info("Client not registered. Attempting to register..");
+            LOGGER.fine("Client not registered. Attempting to register..");
             if (!clientConfig.canClientRegister()) {
                 LOGGER.severe("Client username or password missing. Unable to register client");
                 throw new UnregisteredClientException(
@@ -74,12 +71,12 @@ public final class AceClientBuilder {
 
         }
 
-        private TokenRequestResponse requestToken(final RequestHandler requestHandler)
+        private TokenRequestResponse requestToken(final RestRequestHandler requestHandler)
                 throws ASUnreachableException, FailedAuthenticationException {
             if (!clientConfig.isClientRegistered()) {
                 registerClient(requestHandler);
             }
-            LOGGER.info("Requesting token from AS");
+            LOGGER.fine("Requesting token from AS");
             return requestHandler.requestToken(
                     clientConfig.getHTTPAuthSecret(), clientConfig.grantType, clientConfig.getScope(),
                     clientConfig.aud);
@@ -87,8 +84,8 @@ public final class AceClientBuilder {
 
         TokenRequestResponse requestToken()
                 throws ASUnreachableException, FailedAuthenticationException {
-            final RequestHandler requestHandler =
-                    new RequestHandler(
+            final RestRequestHandler requestHandler =
+                    new RestRequestHandler(
                             Objects.requireNonNull(clientConfig.asServerIP),
                             Objects.requireNonNull(clientConfig.asServerPort));
             return requestToken(requestHandler);
@@ -136,19 +133,19 @@ public final class AceClientBuilder {
             } else if (clientConfig.transportType.equals(ClientConfig.TRANSPORTTYPE.TCP)){
                 withoutSSLTransport();
             } else {
-
+                //TODO: ACE
             }
 
         }
 
         private void withSSLTransport() {
             builder.sslConfig(getSSLConfig(clientConfig)).serverPort(clientConfig.rsServerTLSPort);
-            LOGGER.info("TLS Transport setup");
+            LOGGER.fine("TLS Transport setup");
         }
 
         private void withoutSSLTransport() {
             builder.sslConfig(null).serverPort(clientConfig.rsServerTCPPort);
-            LOGGER.info("TCP Transport setup");
+            LOGGER.fine("TCP Transport setup");
         }
 
         private MqttClientSslConfig getSSLConfig(@NotNull final ClientConfig config) {
@@ -156,7 +153,7 @@ public final class AceClientBuilder {
                     config.getClientTrustStoreFilename().toString(),
                     config.keyStorePass, config.trustStorePass);
         }
-    }
+
 
     public static class Ace3ClientBuilder extends ClientBuilder<Mqtt3ClientBuilder> {
 
@@ -166,26 +163,31 @@ public final class AceClientBuilder {
             super(Mqtt3Client.builder(), config);
         }
 
-        public Ace3ClientBuilder withAuthentication()
+        public Ace3ClientBuilder withAuthentication(final boolean shouldAuthenticate)
                 throws JOSEException, ASUnreachableException, FailedAuthenticationException {
-            final AuthData authData = super.getAuthData();
-            this.connectBuilder.simpleAuth()
-                    .username(authData.getTokenEncoded())
-                    .password(authData.getPOPAuthData())
-                    .applySimpleAuth();
-            LOGGER.info("Username and Password authentication applied to v3 client");
+            if (shouldAuthenticate) {
+                final AuthData authData = super.getAuthData();
+                this.connectBuilder.simpleAuth()
+                        .username(authData.getTokenEncoded())
+                        .password(authData.getPOPAuthData())
+                        .applySimpleAuth();
+                LOGGER.fine("Username and Password authentication applied to v3 client");
+            } else {
+                this.connectBuilder.simpleAuth(null);
+            }
+
             return this;
         }
 
         public Mqtt3Client connect() {
             this.initClient();
             final Mqtt3Client client = this.builder.build();
-            LOGGER.info("Connecting to broker");
+            LOGGER.fine("Connecting to broker");
             client.toBlocking().connect(connectBuilder.build());
             if (client.getState().isConnected()) {
-                LOGGER.info("Connected successfully");
+                LOGGER.fine("Connected successfully");
             } else {
-                LOGGER.info("Connection failed!");
+                LOGGER.severe("Connection failed!");
             }
             return client;
         }
@@ -210,31 +212,31 @@ public final class AceClientBuilder {
         public Ace5ClientBuilder withAuthentication(final AuthenticationType type)
                 throws ASUnreachableException, FailedAuthenticationException, JOSEException {
             if (!clientConfig.isASInfoAvailable()) {
-                LOGGER.info("No AS server found. Attempting a discovery connect");
-                connectBuilder.enhancedAuth(new EnhancedNoAuthDataMechanism());
+                LOGGER.warning("No AS server found. Attempting a discovery connect");
+                connectBuilder.enhancedAuth(new DiscoveryAuthMechanism());
                 pendingAuthentication = type;
             } else if (AuthenticationType.Challenge.equals(type)) {
                 final TokenRequestResponse token = requestToken();
-                connectBuilder.enhancedAuth(new EnhancedAuthDataMechanismWithAuth(token));
-                LOGGER.info("Challenge auth applied");
+                connectBuilder.enhancedAuth(new ChallengeAuthMechanism(token));
+                LOGGER.fine("Challenge auth applied");
             } else if (AuthenticationType.AuthenticationData.equals(type)) {
                 final TokenRequestResponse token = requestToken();
-                connectBuilder.enhancedAuth(new EnhancedAuthDataMechanism(token));
-                LOGGER.info("Enhanced auth applied");
+                connectBuilder.enhancedAuth(new SimpleV5AuthMechanism(token));
+                LOGGER.fine("Enhanced auth applied");
             } else {
-                connectBuilder.enhancedAuth(new EnhancedNoAuthDataMechanism());
+                connectBuilder.enhancedAuth(new DiscoveryAuthMechanism());
                 final AuthData authData = super.getAuthData();
                 connectBuilder.simpleAuth()
                         .username(authData.getTokenEncoded())
                         .password(authData.getPOPAuthData())
                         .applySimpleAuth();
-                LOGGER.info("Username Password auth for v5 client applied");
+                LOGGER.fine("Username Password auth for v5 client applied");
             }
             return this;
         }
 
         private URL extractASlocator(final Mqtt5ConnAck message) {
-            LOGGER.info("Extracting AS server information from discovery CONNACK");
+            LOGGER.fine("Extracting AS server information from discovery CONNACK");
             final List<? extends Mqtt5UserProperty> props = message.getUserProperties().asList();
             String asServer = null;
             for (final Mqtt5UserProperty p : props) {
@@ -253,7 +255,7 @@ public final class AceClientBuilder {
                 LOGGER.severe(String.format("Unable to retrieve AS location from %s : %s ", asServer, e.getMessage()));
                 throw new RuntimeException("Expected a valid URI of AS server.");
             }
-            LOGGER.info(String.format("Extracted AS server information from CONNACK: %s", asServerURL));
+            LOGGER.fine(String.format("Extracted AS server information from CONNACK: %s", asServerURL));
             return asServerURL;
         }
 
@@ -263,11 +265,11 @@ public final class AceClientBuilder {
             final URL asServer;
             Mqtt5ConnAckException error = null;
             try {
-                LOGGER.info("Connecting to broker");
+                LOGGER.fine("Connecting to broker");
                 client.toBlocking().connect(connectBuilder.build());
             } catch (final Mqtt5ConnAckException e) {
                 error = e;
-                LOGGER.info(String.format("Received disconnect CONNACK %s", e.getMqttMessage().getReasonString()));
+                LOGGER.severe(String.format("Received disconnect CONNACK %s", e.getMqttMessage().getReasonString()));
             }
             if (error != null) {
                 if (pendingAuthentication == null) {
@@ -283,7 +285,7 @@ public final class AceClientBuilder {
                 clientConfig.setAsServerIP(asServer.getHost());
                 clientConfig.setAsServerPort(Integer.toString(asServer.getPort()));
                 try {
-                    LOGGER.info("Retrying connection");
+                    LOGGER.fine("Retrying connection");
                     return this.withAuthentication(type).connect();
                 } catch (final Exception ex) {
                     ex.printStackTrace();
@@ -291,9 +293,9 @@ public final class AceClientBuilder {
                 }
             }
             if (client.getState().isConnected()) {
-                LOGGER.info("Connected successfully");
+                LOGGER.fine("Connected successfully");
             } else {
-                LOGGER.info("Connection failed!");
+                LOGGER.severe("Connection failed!");
             }
             return client;
         }

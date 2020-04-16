@@ -16,8 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public abstract class ACEEnhancedAuthMechanism implements Mqtt5EnhancedAuthMechanism {
-    private final static Logger LOGGER = Logger.getLogger(ACEEnhancedAuthMechanism.class.getName());
+public abstract class V5AuthMechanism implements Mqtt5EnhancedAuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(V5AuthMechanism.class.getName());
 
     @Override
     public @NotNull MqttUtf8String getMethod() {

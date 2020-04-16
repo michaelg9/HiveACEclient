@@ -79,11 +79,11 @@ public class ClientConfig implements Serializable {
         try {
             TRANSPORTTYPE.valueOf(type);
         } catch (final IllegalArgumentException e) {
-            LOGGER.info("Illegal transport type found in config file: " + type);
+            LOGGER.warning("Illegal transport type found in config file: " + type);
             type = TRANSPORTTYPE.TLS.name();
         }
         this.transportType = TRANSPORTTYPE.valueOf(type);
-        LOGGER.info("Transport type set to: " + this.transportType.name());
+        LOGGER.fine("Transport type set to: " + this.transportType.name());
         if (this.transportType.equals(TRANSPORTTYPE.TLS) &&
                 (this.certDir == null || this.keyStorePass == null || this.trustStorePass == null)) {
             throw new IllegalStateException("Incomplete info found for TLS transport");
@@ -145,7 +145,7 @@ public class ClientConfig implements Serializable {
     }
 
     public boolean persist(@NotNull final String dir) {
-        LOGGER.info("Persisting new properties");
+        LOGGER.fine("Persisting new properties");
         try (final OutputStream out = new FileOutputStream(Paths.get(dir, LOCAL_CONFIG_FILENAME).toString())) {
             properties.store(out, "---No comments---");
         } catch (final IOException e) {
@@ -207,7 +207,7 @@ public class ClientConfig implements Serializable {
         }
         if (properties != null) {
             instance = new ClientConfig(properties);
-            LOGGER.info("Loading client config from local properties file");
+            LOGGER.fine("Loading client config from local properties file");
         } else {
             try (final InputStream input = new FileInputStream(configFilename)) {
                 properties = new Properties();

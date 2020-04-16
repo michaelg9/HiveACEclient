@@ -21,18 +21,16 @@ import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
-import java.util.Base64;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.ace.mqtt.utils.StringUtils.bytesToBase64;
 
-class OauthHttpsClient {
-    private final static Logger LOGGER = Logger.getLogger(OauthHttpsClient.class.getName());
+class HttpsClient {
+    private final static Logger LOGGER = Logger.getLogger(HttpsClient.class.getName());
     @NotNull private final EndpointRetriever endpointRetriever;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public OauthHttpsClient(final String OauthServerAddress, final String OauthServerPort) {
+    public HttpsClient(final String OauthServerAddress, final String OauthServerPort) {
         endpointRetriever = new EndpointRetriever("https", OauthServerAddress, OauthServerPort);
     }
 
@@ -121,9 +119,7 @@ class OauthHttpsClient {
         } catch (final IOException e) {
             throw new ASUnreachableException("Unable to receive request response from AS server", e);
         }
-        LOGGER.log(
-                Level.FINE,
-                String.format("Response:\t\nHeaders:\t%s\nBody:\t%s", con.getHeaderFields(), response.toString()));
+        LOGGER.fine(String.format("Response:\t\nHeaders:\t%s\nBody:\t%s", con.getHeaderFields(), response.toString()));
         return responseCode;
     }
 
@@ -158,8 +154,7 @@ class OauthHttpsClient {
         final String encodedAuth = bytesToBase64(authorizationHeader);
         con.setRequestProperty("Authorization", "Basic " + encodedAuth);
         con.setRequestProperty("Content-Type", "application/json");
-        LOGGER.log(
-                Level.FINE,
+        LOGGER.fine(
                 String.format("Request:\t%s\nHeaders:\t%s\nBody:\t%s", con.toString(), con.getRequestProperties(),
                         stringifiedBody));
         send(stringifiedBody, con);
@@ -199,8 +194,7 @@ class OauthHttpsClient {
         con.setDoOutput(true);
         con.setDoInput(true);
         con.setRequestProperty("Content-Type", "application/json");
-        LOGGER.log(
-                Level.FINE,
+        LOGGER.fine(
                 String.format("Request:\t%s\nHeaders:\t%s\nBody:\t%s", con.toString(), con.getRequestProperties(),
                         stringifiedBody));
         send(stringifiedBody, con);
@@ -208,7 +202,7 @@ class OauthHttpsClient {
         final int responseCode = receive(con, response);
         final String responseString = response.toString();
         con.disconnect();
-        if ((int) (responseCode / 100) != 2) {
+        if ((responseCode / 100) != 2) {
             // token request failed, invalid token
             throw new FailedAuthenticationException(responseString);
         }

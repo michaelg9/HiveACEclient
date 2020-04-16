@@ -16,17 +16,16 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.ace.mqtt.utils.StringUtils.bytesToBase64;
 
-public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism {
-    private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanismWithAuth.class.getName());
+public class ChallengeAuthMechanism extends V5AuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(ChallengeAuthMechanism.class.getName());
     @NotNull private final TokenRequestResponse requestToken;
     @NotNull private final AuthData authData;
 
-    public EnhancedAuthDataMechanismWithAuth(@NotNull final TokenRequestResponse requestToken) {
+    public ChallengeAuthMechanism(@NotNull final TokenRequestResponse requestToken) {
         this.requestToken = requestToken;
         this.authData = new AuthData(requestToken.getAccessToken());
     }
@@ -67,7 +66,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
         final short length = data.getShort();
         final byte[] nonce = new byte[length];
         data.get(nonce);
-        LOGGER.log(Level.FINE, String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToBase64(nonce)));
+        LOGGER.fine(String.format("Broker AUTH:\t%s\nData:\t%s", auth.toString(), bytesToBase64(nonce)));
         //todo: key encoding?
         final MACCalculator macCalculator = new MACCalculator(
                 requestToken.getCnf().getJwk().getK(), requestToken.getCnf().getJwk().getAlg());
@@ -79,7 +78,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
             future.completeExceptionally(e);
             return future;
         }
-        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(mac)));
+        LOGGER.fine(String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(mac)));
         authData.setPop(mac);
         authBuilder.data(authData.getPOPAuthData());
         future.complete(Boolean.TRUE);
@@ -89,7 +88,7 @@ public class EnhancedAuthDataMechanismWithAuth extends ACEEnhancedAuthMechanism 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
+        LOGGER.fine(String.format("Received CONNACK:\t%s", connAck));
         return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 

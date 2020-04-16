@@ -14,16 +14,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
-    private final static Logger LOGGER = Logger.getLogger(EnhancedAuthDataMechanism.class.getName());
+public class SimpleV5AuthMechanism extends V5AuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(SimpleV5AuthMechanism.class.getName());
 
     @NotNull
     private final TokenRequestResponse token;
 
-    public EnhancedAuthDataMechanism(@NotNull final TokenRequestResponse token) {
+    public SimpleV5AuthMechanism(@NotNull final TokenRequestResponse token) {
         this.token = token;
     }
 
@@ -43,7 +42,7 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
             future.completeExceptionally(e);
             return future;
         }
-        LOGGER.log(Level.FINE, String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(pop)));
+        LOGGER.fine(String.format("Calculated POP:\t%s", Base64.getEncoder().encodeToString(pop)));
         final AuthData authData = new AuthData(token.getAccessToken(), pop);
         authBuilder.data(authData.getCompleteAuthData());
         future.complete(null);
@@ -73,7 +72,7 @@ public class EnhancedAuthDataMechanism extends ACEEnhancedAuthMechanism {
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
+        LOGGER.fine(String.format("Received CONNACK:\t%s", connAck));
         return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 

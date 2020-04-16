@@ -9,11 +9,10 @@ import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class EnhancedNoAuthDataMechanism extends ACEEnhancedAuthMechanism {
-    private final static Logger LOGGER = Logger.getLogger(EnhancedNoAuthDataMechanism.class.getName());
+public class DiscoveryAuthMechanism extends V5AuthMechanism {
+    private final static Logger LOGGER = Logger.getLogger(DiscoveryAuthMechanism.class.getName());
     private final String errorMessage = "AS discovery authentication attempt does not expect";
 
     @Override
@@ -44,7 +43,7 @@ public class EnhancedNoAuthDataMechanism extends ACEEnhancedAuthMechanism {
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(
             @NotNull final Mqtt5ClientConfig clientConfig, @NotNull final Mqtt5ConnAck connAck) {
-        LOGGER.log(Level.FINE, String.format("Received CONNACK:\t%s", connAck));
+        LOGGER.fine(String.format("Received CONNACK:\t%s", connAck));
         return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 
